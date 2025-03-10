@@ -1,4 +1,7 @@
 ```sh
+# 启动 anvil
+anvil -v
+
 # 合约部署到 anvil
 forge create \
 --rpc-url 127.0.0.1:8545 \
