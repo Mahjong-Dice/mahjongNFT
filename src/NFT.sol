@@ -7,7 +7,13 @@ import "openzeppelin-contracts/contracts/token/ERC721/extensions/ERC721URIStorag
 import "openzeppelin-contracts/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 
-contract MahjongNFT is ERC721, ERC721URIStorage, Ownable, ERC721Enumerable, ReentrancyGuard {
+contract MahjongNFT is
+    ERC721,
+    ERC721URIStorage,
+    Ownable,
+    ERC721Enumerable,
+    ReentrancyGuard
+{
     uint256 private _tokenIds;
     // 铸造价格
     uint256 public mintPrice = 0.001 ether;
@@ -68,7 +74,7 @@ contract MahjongNFT is ERC721, ERC721URIStorage, Ownable, ERC721Enumerable, Reen
         for (uint256 i = 0; i < balance; i++) {
             // 遍历用户的所有NFT
             uint256 tokenId = tokenOfOwnerByIndex(owner, i); // 获取用户的NFT ID
-            require(_exists(tokenId), "Invalid token ID"); // 确保NFT存在
+            // require(_exists(tokenId), "Invalid token ID"); // 确保NFT存在
             cids[i] = tokenURI(tokenId);
         }
         return cids;
@@ -91,8 +97,20 @@ contract MahjongNFT is ERC721, ERC721URIStorage, Ownable, ERC721Enumerable, Reen
 
     function supportsInterface(
         bytes4 interfaceId
-    ) public view override(ERC721, ERC721URIStorage) returns (bool) {
+    )
+        public
+        view
+        override(ERC721, ERC721URIStorage, ERC721Enumerable)
+        returns (bool)
+    {
         return super.supportsInterface(interfaceId);
+    }
+
+    function _increaseBalance(
+        address account,
+        uint128 value
+    ) internal override(ERC721, ERC721Enumerable) {
+        super._increaseBalance(account, value);
     }
 
     // 新增设置铸造价格函数（仅owner）
@@ -101,19 +119,12 @@ contract MahjongNFT is ERC721, ERC721URIStorage, Ownable, ERC721Enumerable, Reen
     }
 
     // 重写转账函数添加手续费
-    function _transfer(
-        address from,
-        address to,
-        uint256 tokenId
-    ) internal override {
-        // 计算手续费
+    function transferWithFee(address to, uint256 tokenId) public {
         uint256 fee = (tx.gasprice * transactionFeePercent) / 100;
-
-        // 转账手续费给合约所有者
         (bool feeSent, ) = owner().call{value: fee}("");
         require(feeSent, "Fee transfer failed");
 
-        super._transfer(from, to, tokenId);
+        safeTransferFrom(msg.sender, to, tokenId);
     }
 
     // 新增提取合约余额函数
