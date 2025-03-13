@@ -4,7 +4,7 @@ anvil --state ./anvil_state.json
 
 # 给浏览器钱包 发钱
 cast send \
---private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 0x85b43312775fe284b14cfe0cfdf064bd5007a0c6 \
+--private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 0x85B43312775fe284b14CfE0CFdf064bD5007a0C6 \
 --value 1000000000000000000 \
 --rpc-url http://localhost:8545
 
