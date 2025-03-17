@@ -1,6 +1,6 @@
 ```sh
 # 启动 anvil
-anvil --state ./anvil_state.json
+  --state ./anvil_state.json
 
 # 给浏览器钱包 发钱
 cast send \
@@ -18,10 +18,10 @@ src/NFT.sol:MahjongNFT \
 # 部署合约到 以太坊测试网
 # .env 配置变量
 forge create \
---rpc-url $SEPOLIA_RPC_URL \ 
+--rpc-url $SEPOLIA_RPC_URL \
 --private-key $PRIVATE_KEY \
 --etherscan-api-key $ETHERSCAN_API_KEY \
-src/Counter.sol:Counter \
+src/NFT.sol:MahjongNFT \
 --broadcast \
 --verify \
 -vvvv

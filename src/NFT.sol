@@ -18,11 +18,11 @@ contract MahjongNFT is
     // 铸造价格
     uint256 public mintPrice = 0.001 ether;
     // 一副麻将总数 136张
-    uint256 public mahjongCount = 136;
+    uint256 private mahjongCount = 136;
     // 每个人最多获得的数量 13 张
-    uint256 public senderCountLimit = 13;
+    uint256 private senderCountLimit = 13;
     // 限制生成的总数 100 * 13
-    uint256 public maxSupply = senderCountLimit * 100;
+    uint256 private maxSupply = senderCountLimit * 100;
     // 保存该调用者已有的麻将数量
     // 简化数据结构，只存储额外的信息
     struct MahjongObj {
@@ -36,6 +36,13 @@ contract MahjongNFT is
     uint256 public transactionFeePercent = 1;
     // 保存所有麻将信息
     mapping(uint256 => MahjongObj) private mahjongs;
+
+    /* Events */
+    event NFTMinted(
+        address indexed minter,
+        uint256 indexed tokenId,
+        string tokenURI
+    );
 
     constructor() ERC721("MahjongNFT", "MJNFT") Ownable(msg.sender) {}
 
@@ -63,6 +70,7 @@ contract MahjongNFT is
         _setTokenURI(newItemId, _tokenURI);
         mahjongs[newItemId] = MahjongObj({id: newItemId});
 
+        emit NFTMinted(msg.sender, newItemId, _tokenURI);
         return newItemId;
     }
 
