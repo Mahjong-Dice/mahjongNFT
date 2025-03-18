@@ -18,7 +18,7 @@ contract MahjongNFT is
 {
     using ECDSA for bytes32;
 
-    uint256 private _tokenIds;
+    uint256 private _tokenIds = 1;
     // 铸造价格
     uint256 public mintPrice = 0.001 ether;
     // 一副麻将总数 136张
