@@ -1,6 +1,6 @@
 ```sh
 # 启动 anvil
-  --state ./anvil_state.json
+anvil --state ./anvil_state.json
 
 # 给浏览器钱包 发钱
 cast send \

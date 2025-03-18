@@ -6,6 +6,8 @@ import "openzeppelin-contracts/contracts/access/Ownable.sol";
 import "openzeppelin-contracts/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "openzeppelin-contracts/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 contract MahjongNFT is
     ERC721,
@@ -14,6 +16,8 @@ contract MahjongNFT is
     ERC721Enumerable,
     ReentrancyGuard
 {
+    using ECDSA for bytes32;
+
     uint256 private _tokenIds;
     // 铸造价格
     uint256 public mintPrice = 0.001 ether;
@@ -27,15 +31,21 @@ contract MahjongNFT is
     // 简化数据结构，只存储额外的信息
     struct MahjongObj {
         uint256 id;
-        // 这里可以添加其他你需要的麻将特定属性
-        // 例如：麻将类型、创建时间等
     }
+    struct Order {
+        address contract_;
+        uint256[] tokenIds;
+        uint256 price;
+        uint256 expiry; // 过期时间
+    }
+
+    // 记录NFT上架信息
+    mapping(bytes32 => bool) public orderStatus;
+
     // 新增地址铸造次数跟踪
     mapping(address => uint256) public addressMintCount;
     // 新增手续费比例（1%）
     uint256 public transactionFeePercent = 1;
-    // 保存所有麻将信息
-    mapping(uint256 => MahjongObj) private mahjongs;
 
     /* Events */
     event NFTMinted(
@@ -43,6 +53,17 @@ contract MahjongNFT is
         uint256 indexed tokenId,
         string tokenURI
     );
+
+    event NFTListed(
+        address indexed seller,
+        address indexed nftContract,
+        uint256 tokenId,
+        uint256 price,
+        uint256 expiry
+    );
+
+    /* Errors */
+    error Expired();
 
     constructor() ERC721("MahjongNFT", "MJNFT") Ownable(msg.sender) {}
 
@@ -68,7 +89,6 @@ contract MahjongNFT is
 
         _mint(msg.sender, newItemId);
         _setTokenURI(newItemId, _tokenURI);
-        mahjongs[newItemId] = MahjongObj({id: newItemId});
 
         emit NFTMinted(msg.sender, newItemId, _tokenURI);
         return newItemId;
@@ -86,6 +106,51 @@ contract MahjongNFT is
             cids[i] = tokenURI(tokenId);
         }
         return cids;
+    }
+
+    // 上架NFT
+    function listNFT(
+        address contract_,
+        uint256[] memory tokenIds,
+        uint256 price,
+        uint256 expiry,
+        bytes memory signature
+    ) external {
+        if (expiry < block.timestamp) {
+            revert Expired();
+        }
+        Order memory order = Order(contract_, tokenIds, price, expiry);
+        bytes32 orderHash = getOrderHash(order);
+
+        // 正确的最新版调用方式
+        bytes32 message = MessageHashUtils.toEthSignedMessageHash(orderHash);
+        address signer = ECDSA.recover(message, signature);
+
+        // 验证签名者是否为代币拥有者
+        for (uint i = 0; i < tokenIds.length; i++) {
+            require(
+                IERC721(contract_).ownerOf(tokenIds[i]) == signer,
+                "Not token owner"
+            );
+        }
+
+        // 检查是否已经授权给市场合约
+        for (uint i = 0; i < tokenIds.length; i++) {
+            require(
+                IERC721(contract_).isApprovedForAll(signer, address(this)) ||
+                    IERC721(contract_).getApproved(tokenIds[i]) ==
+                    address(this),
+                "Not approved"
+            );
+        }
+
+        // 记录订单状态
+        orderStatus[orderHash] = true;
+
+        // 触发事件
+        for (uint i = 0; i < tokenIds.length; i++) {
+            emit NFTListed(signer, contract_, tokenIds[i], price, expiry);
+        }
     }
 
     function _update(
@@ -139,5 +204,17 @@ contract MahjongNFT is
     function withdraw() external onlyOwner {
         (bool sent, ) = owner().call{value: address(this).balance}("");
         require(sent, "Withdraw failed");
+    }
+
+    function getOrderHash(Order memory order) public pure returns (bytes32) {
+        return
+            keccak256(
+                abi.encode(
+                    order.contract_,
+                    order.tokenIds,
+                    order.price,
+                    order.expiry
+                )
+            );
     }
 }
