@@ -64,7 +64,6 @@ contract MahjongNFT is
 
     /* Errors */
     error Expired();
-    error NotApproved();
 
     constructor() ERC721("MahjongNFT", "MJNFT") Ownable(msg.sender) {}
 
@@ -89,6 +88,7 @@ contract MahjongNFT is
         require(sent, "Payment failed");
 
         _mint(msg.sender, newItemId);
+        approve(msg.sender, newItemId); // 新增授权逻辑
         _setTokenURI(newItemId, _tokenURI);
 
         emit NFTMinted(msg.sender, newItemId, _tokenURI);
@@ -117,19 +117,20 @@ contract MahjongNFT is
         uint256 expiry,
         bytes calldata signature
     ) external {
-        if (expiry < block.timestamp) {
-            revert Expired();
-        }
+        // if (expiry < block.timestamp) {
+        //     revert Expired();
+        // }
+        require(expiry > block.timestamp, "Expired");
         require(tokenIds.length <= 50, "Max 50 NFTs per batch");
 
         // 1. 验证签名并获取签名者
         Order memory order = Order(contract_, tokenIds, price, expiry);
         bytes32 orderHash = getOrderHash(order);
-        bytes32 message = MessageHashUtils.toEthSignedMessageHash(orderHash);
-        address signer = ECDSA.recover(message, signature);
+
+        address signer = getSignerOfHash(orderHash, signature);
 
         // 2. 检查所有token的所有权
-        for (uint i = 0; i < tokenIds.length; i++) {
+        for (uint256 i = 0; i < tokenIds.length; i++) {
             require(
                 IERC721(contract_).ownerOf(tokenIds[i]) == signer,
                 "Not token owner"
@@ -142,7 +143,7 @@ contract MahjongNFT is
             address(this)
         );
         if (!isApprovedForAll) {
-            for (uint i = 0; i < tokenIds.length; i++) {
+            for (uint256 i = 0; i < tokenIds.length; i++) {
                 require(
                     IERC721(contract_).getApproved(tokenIds[i]) ==
                         address(this),
@@ -157,6 +158,15 @@ contract MahjongNFT is
 
         // 5. 触发事件（保持原逻辑）
         emit NFTListed(signer, contract_, tokenIds, price, expiry);
+    }
+
+    function getSignerOfHash(
+        bytes32 _hash,
+        bytes calldata signature
+    ) public pure returns (address) {
+        bytes32 message = MessageHashUtils.toEthSignedMessageHash(_hash);
+        address signer = ECDSA.recover(message, signature);
+        return signer;
     }
 
     function _update(
