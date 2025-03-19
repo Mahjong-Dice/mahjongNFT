@@ -17,6 +17,7 @@ src/NFT.sol:MahjongNFT \
 
 # 部署合约到 以太坊测试网
 # .env 配置变量
+# source .env
 forge create \
 --rpc-url $SEPOLIA_RPC_URL \
 --private-key $PRIVATE_KEY \
@@ -49,6 +50,9 @@ cast send 0x5FbDB2315678afecb367f032d93F642f64180aa3 \
 cast call 0x5FbDB2315678afecb367f032d93F642f64180aa3 \
 "number()(uint256)" \
 --rpc-url http://localhost:8545
+
+# 4. test
+cast send 0x4A679253410272dd5232B3Ff7cF5dbB88f295319 "listNFT(address,uint256[],uint256,uint256,bytes)" "0x4A679253410272dd5232B3Ff7cF5dbB88f295319" "[1]" "10000000000000000" "1742355029" "0xb81e6ccfed0dfaa9c6e8809e60f06f4427f89bc0c76544e93a364b0741c674933e9579f660676beeffde9078afeb974f4d8028bdc7d7927bc9805c552098e77a1c" --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --rpc-url http://localhost:8545
 
 ```
 * cast send：用于状态修改操作（需要gas费）

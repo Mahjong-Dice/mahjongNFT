@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.20;
 
-import "openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
-import "openzeppelin-contracts/contracts/access/Ownable.sol";
-import "openzeppelin-contracts/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
-import "openzeppelin-contracts/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
-import "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
@@ -18,7 +18,7 @@ contract MahjongNFT is
 {
     using ECDSA for bytes32;
 
-    uint256 private _tokenIds = 1;
+    uint256 private _tokenIds = 0;
     // 铸造价格
     uint256 public mintPrice = 0.001 ether;
     // 一副麻将总数 136张
@@ -57,13 +57,14 @@ contract MahjongNFT is
     event NFTListed(
         address indexed seller,
         address indexed nftContract,
-        uint256 tokenId,
+        uint256[] tokenIds,
         uint256 price,
         uint256 expiry
     );
 
     /* Errors */
     error Expired();
+    error NotApproved();
 
     constructor() ERC721("MahjongNFT", "MJNFT") Ownable(msg.sender) {}
 
@@ -111,22 +112,23 @@ contract MahjongNFT is
     // 上架NFT
     function listNFT(
         address contract_,
-        uint256[] memory tokenIds,
+        uint256[] calldata tokenIds,
         uint256 price,
         uint256 expiry,
-        bytes memory signature
+        bytes calldata signature
     ) external {
         if (expiry < block.timestamp) {
             revert Expired();
         }
+        require(tokenIds.length <= 50, "Max 50 NFTs per batch");
+
+        // 1. 验证签名并获取签名者
         Order memory order = Order(contract_, tokenIds, price, expiry);
         bytes32 orderHash = getOrderHash(order);
-
-        // 正确的最新版调用方式
         bytes32 message = MessageHashUtils.toEthSignedMessageHash(orderHash);
         address signer = ECDSA.recover(message, signature);
 
-        // 验证签名者是否为代币拥有者
+        // 2. 检查所有token的所有权
         for (uint i = 0; i < tokenIds.length; i++) {
             require(
                 IERC721(contract_).ownerOf(tokenIds[i]) == signer,
@@ -134,23 +136,27 @@ contract MahjongNFT is
             );
         }
 
-        // 检查是否已经授权给市场合约
-        for (uint i = 0; i < tokenIds.length; i++) {
-            require(
-                IERC721(contract_).isApprovedForAll(signer, address(this)) ||
+        // 3. 优化授权检查逻辑
+        bool isApprovedForAll = IERC721(contract_).isApprovedForAll(
+            signer,
+            address(this)
+        );
+        if (!isApprovedForAll) {
+            for (uint i = 0; i < tokenIds.length; i++) {
+                require(
                     IERC721(contract_).getApproved(tokenIds[i]) ==
-                    address(this),
-                "Not approved"
-            );
+                        address(this),
+                    "Not approved"
+                );
+            }
         }
 
-        // 记录订单状态
+        // 4. 记录订单状态
+        require(!orderStatus[orderHash], "Order already exists");
         orderStatus[orderHash] = true;
 
-        // 触发事件
-        for (uint i = 0; i < tokenIds.length; i++) {
-            emit NFTListed(signer, contract_, tokenIds[i], price, expiry);
-        }
+        // 5. 触发事件（保持原逻辑）
+        emit NFTListed(signer, contract_, tokenIds, price, expiry);
     }
 
     function _update(
