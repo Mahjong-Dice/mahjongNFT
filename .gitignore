@@ -13,3 +13,4 @@ docs/
 # Dotenv file
 .env
 ./anvil_state.json
+anvil_state.json
