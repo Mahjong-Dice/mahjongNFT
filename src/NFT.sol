@@ -88,7 +88,7 @@ contract MahjongNFT is
         require(sent, "Payment failed");
 
         _mint(msg.sender, newItemId);
-        approve(msg.sender, newItemId); // 新增授权逻辑
+        // approve(msg.sender, newItemId); // 新增授权逻辑
         _setTokenURI(newItemId, _tokenURI);
 
         emit NFTMinted(msg.sender, newItemId, _tokenURI);
