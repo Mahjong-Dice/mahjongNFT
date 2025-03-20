@@ -117,10 +117,9 @@ contract MahjongNFT is
         uint256 expiry,
         bytes calldata signature
     ) external {
-        // if (expiry < block.timestamp) {
-        //     revert Expired();
-        // }
-        require(expiry > block.timestamp, "Expired");
+        if (expiry < block.timestamp) {
+            revert Expired();
+        }
         require(tokenIds.length <= 50, "Max 50 NFTs per batch");
 
         // 1. 验证签名并获取签名者
@@ -158,6 +157,12 @@ contract MahjongNFT is
 
         // 5. 触发事件（保持原逻辑）
         emit NFTListed(signer, contract_, tokenIds, price, expiry);
+    }
+
+    // 下架
+    function revokeApproval(uint256 tokenId) external {
+        require(ownerOf(tokenId) == msg.sender, "Not owner");
+        _approve(address(0), tokenId, _msgSender()); // 调用标准接口实现
     }
 
     function getSignerOfHash(
@@ -207,7 +212,7 @@ contract MahjongNFT is
         mintPrice = newPrice;
     }
 
-    // 重写转账函数添加手续费
+    // 转账函数添加手续费
     function transferWithFee(address to, uint256 tokenId) public {
         uint256 fee = (tx.gasprice * transactionFeePercent) / 100;
         (bool feeSent, ) = owner().call{value: fee}("");
