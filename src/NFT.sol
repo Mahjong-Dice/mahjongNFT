@@ -61,6 +61,14 @@ contract MahjongNFT is
         uint256 price,
         uint256 expiry
     );
+    // 添加事件记录NFT转移
+    event NFTTransferred(
+        address indexed from,
+        address indexed to,
+        uint256 indexed tokenId,
+        uint256 price,
+        uint256 fee
+    );
 
     /* Errors */
     error Expired();
@@ -212,13 +220,40 @@ contract MahjongNFT is
         mintPrice = newPrice;
     }
 
-    // 转账函数添加手续费
-    function transferWithFee(address to, uint256 tokenId) public {
-        uint256 fee = (tx.gasprice * transactionFeePercent) / 100;
+    // 转账函数添加基于交易价格的手续费
+    function transferWithFee(
+        address to,
+        uint256 tokenId,
+        uint256 price
+    ) public payable nonReentrant {
+        // 检查发送者是否为NFT拥有者
+        require(ownerOf(tokenId) == msg.sender, "Not the owner of this NFT");
+
+        // 检查接收地址不为零地址
+        require(to != address(0), "Transfer to zero address");
+
+        // 计算手续费（交易价格的1%）
+        uint256 fee = (price * transactionFeePercent) / 100;
+
+        // 检查支付的手续费是否足够
+        require(msg.value >= fee, "Insufficient fee");
+
+        // 将手续费发送给合约拥有者
         (bool feeSent, ) = owner().call{value: fee}("");
         require(feeSent, "Fee transfer failed");
 
+        // 如果用户发送了超额的ETH，退还多余部分
+        if (msg.value > fee) {
+            uint256 refund = msg.value - fee;
+            (bool refundSent, ) = msg.sender.call{value: refund}("");
+            require(refundSent, "Refund failed");
+        }
+
+        // 执行NFT转移
         safeTransferFrom(msg.sender, to, tokenId);
+
+        // 触发事件记录交易信息
+        emit NFTTransferred(msg.sender, to, tokenId, price, fee);
     }
 
     // 新增提取合约余额函数
