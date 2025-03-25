@@ -39,6 +39,8 @@ contract MahjongNFT is
         uint256 expiry; // 过期时间
     }
 
+    // NFT 价格映射
+    mapping(uint256 => uint256) public nftPrices;
     // 记录NFT上架信息
     mapping(bytes32 => bool) public orderStatus;
 
@@ -130,6 +132,7 @@ contract MahjongNFT is
         }
         require(tokenIds.length <= 50, "Max 50 NFTs per batch");
 
+        nftPrices[tokenIds[0]] = price;
         // 1. 验证签名并获取签名者
         Order memory order = Order(contract_, tokenIds, price, expiry);
         bytes32 orderHash = getOrderHash(order);
@@ -220,7 +223,7 @@ contract MahjongNFT is
         mintPrice = newPrice;
     }
 
-    // 转账函数添加基于交易价格的手续费
+    // 卖家转移NFT并收取手续费
     function transferWithFee(
         address to,
         uint256 tokenId,
@@ -254,6 +257,39 @@ contract MahjongNFT is
 
         // 触发事件记录交易信息
         emit NFTTransferred(msg.sender, to, tokenId, price, fee);
+    }
+
+    // 买家购买NFT
+    function buyNFT(uint256 tokenId) external payable nonReentrant {
+        uint256 price = nftPrices[tokenId];
+        // 检查支付的金额是否足够
+        require(msg.value >= price, "Insufficient funds");
+        address seller = ownerOf(tokenId);
+        // 检查接收地址不为零地址
+        require(msg.sender != address(0), "Transfer to zero address");
+        // 检查发送者是否为NFT拥有者
+        require(ownerOf(tokenId) != msg.sender, "Cannot buy your own NFT");
+
+        uint256 fee = (price * transactionFeePercent) / 100;
+        uint256 sellerAmount = price - fee;
+
+        // 转移资金给卖家
+        (bool sentToSeller, ) = payable(seller).call{value: sellerAmount}("");
+        require(sentToSeller, "Failed to send payment to seller");
+
+        // 转移手续费给合约拥有者
+        (bool sentFee, ) = payable(owner()).call{value: fee}("");
+        require(sentFee, "Failed to send fee");
+
+        // 退还多余的 ETH
+        if (msg.value > price) {
+            (bool refundSent, ) = payable(msg.sender).call{
+                value: msg.value - price
+            }("");
+            require(refundSent, "Failed to refund excess");
+        }
+
+        emit NFTTransferred(seller, msg.sender, tokenId, price, fee);
     }
 
     // 新增提取合约余额函数
