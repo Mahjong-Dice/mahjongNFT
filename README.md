@@ -1,3 +1,6 @@
+## 这是一个精简的NFT合约，用于测试和学习。
+
+
 ## Foundry
 
 **Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**

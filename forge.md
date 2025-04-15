@@ -27,6 +27,9 @@ src/NFT.sol:MahjongNFT \
 --verify \
 -vvvv
 
+# 合约部署到 以太坊testnet
+0x85C81c5c4738D5b9Fae3639E7Fd013b42c5169C9
+
 # 测试链交互
 cast send 0xFB97302543f1A4ce9B4362E4F9620F62f7264954 \
 "increment()" \
